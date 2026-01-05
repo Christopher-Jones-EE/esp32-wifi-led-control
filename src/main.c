@@ -1,5 +1,4 @@
 #include <string.h>
-#define CONFIG_HTTPD_MAX_URI_HANDLERS 20
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_wifi.h"
@@ -14,8 +13,8 @@
 #include "driver/ledc.h"
 #include "esp_err.h"
 
-#define WIFI_SSID "ORBI92"
-#define WIFI_PASS "dizzyapple952"
+#define WIFI_SSID "Wifi-Network"
+#define WIFI_PASS "Wifi-Password"
 
 static const char *TAG = "ESP WIFI";
 static bool status = 0;
@@ -26,6 +25,7 @@ int speed = 3;
 int mode = 0;
 char speed_str [12];
 
+//set up PWM timer
 static void ledc_config() {
 ledc_timer_config_t timer_config = {
 .timer_num = LEDC_TIMER_0,
@@ -37,7 +37,7 @@ ledc_timer_config_t timer_config = {
 
 ledc_timer_config(&timer_config);
 
-
+//set up PWM channel
 ledc_channel_config_t channel_config = {
     .timer_sel = LEDC_TIMER_0,
     .channel = LEDC_CHANNEL_0,
@@ -49,7 +49,7 @@ ledc_channel_config_t channel_config = {
 
 ledc_channel_config(&channel_config); }
 
-
+//wifi event handler
 static void event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -67,6 +67,7 @@ static void event_handler (void *arg, esp_event_base_t event_base, int32_t event
 
 }
 
+//initiate esp32 wifi
 void wifi_init_sta () {
 
 nvs_flash_init();
@@ -96,7 +97,7 @@ ESP_LOGI (TAG, "ESP32 STA mode has been initiated");
 
 }
 
-
+//led on handler
 esp_err_t led_on_handler(httpd_req_t *req) {
   status = 1;
   printf("on\n");
@@ -110,6 +111,7 @@ esp_err_t led_on_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+//led off handler
 esp_err_t led_off_handler(httpd_req_t *req) {
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
@@ -120,6 +122,7 @@ esp_err_t led_off_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+//led brightness handler
 esp_err_t brightness_handler(httpd_req_t *req) {
     char buffer[16];
     if(httpd_req_get_url_query_len(req) < sizeof(buffer)) {
@@ -138,25 +141,7 @@ esp_err_t brightness_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-
-
-esp_err_t updateB_handler (httpd_req_t *req) {
-
-if (status == 0) {
-  httpd_resp_send(req, "0", HTTPD_RESP_USE_STRLEN);
-}
-else {httpd_resp_send(req, value_str, HTTPD_RESP_USE_STRLEN);}
-printf("Handler %s called\n", req->uri);
-return ESP_OK;
-}
-
-esp_err_t status_handler (httpd_req_t *req) {
-
-httpd_resp_send(req, status ? "ON":"OFF", HTTPD_RESP_USE_STRLEN);
-printf("Handler %s called\n", req->uri);
-return ESP_OK;
-}
-
+//fade mode handler
 esp_err_t fade_handler (httpd_req_t *req) {
 mode = 1;
 printf("fade mode\n");
@@ -165,6 +150,7 @@ httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
 return ESP_OK;
 }
 
+//blink mode handler
 esp_err_t blink_handler (httpd_req_t *req) {
 
   mode = 2;
@@ -174,6 +160,7 @@ esp_err_t blink_handler (httpd_req_t *req) {
   return ESP_OK;
 }
 
+//led speed handler
 esp_err_t speed_handler (httpd_req_t *req) {
   char buffer[16];
     if(httpd_req_get_url_query_len(req) < sizeof(buffer)) {
@@ -189,6 +176,7 @@ esp_err_t speed_handler (httpd_req_t *req) {
   return ESP_OK;
 }
 
+//solid mode handler
 esp_err_t solid_handler (httpd_req_t *req) {
   mode = 0;
   printf("solid Mode\n");
@@ -197,6 +185,7 @@ esp_err_t solid_handler (httpd_req_t *req) {
   return ESP_OK;
 }
 
+//server index handler
 esp_err_t index_handler (httpd_req_t *req) {
 const char *first_page = 
 "<!DOCTYPE html>"
@@ -338,22 +327,27 @@ const char *first_page =
     "document.getElementById(\"Status\").innerText = \"Status: OFF\";\n"
     "document.getElementById(\"Brightness\").innerText = \"Brightness: 0%\";\n"
 
+    //blink function
       "function Blink() {"
       "document.getElementById(\"Mode\").innerText=\"Mode: Blink\";"
       "fetch('/blink');}\n"
 
+    //fade function
       "function Fade() {"
       "document.getElementById(\"Mode\").innerText=\"Mode: Fade\";"
       "fetch('/fade');}\n"
 
+    //solid mode funtcion
       "function Solid() {"
       "document.getElementById(\"Mode\").innerText=\"Mode: Solid\";"
       "fetch('/solid');}\n"
 
+    //speed update function
       "function updateSpeed(value){"
       "document.getElementById(\"Speed\").innerText=\"Speed: \" + value;"
       "fetch(`/speed?speed=${value}`);}"
 
+    //brightness update function
       "function updateBrightness(value) {"
       "bright = value;\n"
       "if (status == \"ON\") {"
@@ -362,6 +356,7 @@ const char *first_page =
       "else {document.getElementById(\"Brightness\").innerText = \"Brightness: 0%\";}\n"
       "fetch(`/brightness?value=${value}`);}\n"
 
+    //led on function
       "function ledOn() {"
       "fetch(`/brightness?value=${bright}`);\n"
         "fetch('/led/on');\n"
@@ -369,6 +364,7 @@ const char *first_page =
         "document.getElementById(\"Status\").innerText = \"Status: ON\";\n"
         "document.getElementById(\"Brightness\").innerText = \"Brightness: \" + Math.round(bright*100/255) + \"%\";\n}"
 
+    //led off function
       "function ledOff() {"
       "fetch('/led/off');"
       "document.getElementById(\"Brightness\").innerText = \"Brightness: 0%\";\n"
@@ -386,6 +382,7 @@ printf("webpage was summoned\n");
 return ESP_OK;
 }
 
+//initiate webserver
 httpd_handle_t start_webserver () {
 httpd_handle_t server = NULL;
 httpd_config_t config = HTTPD_DEFAULT_CONFIG ();
@@ -446,6 +443,7 @@ httpd_uri_t uri_brightness = {
     .handler = brightness_handler
 };
 
+    //register uri handlers
 httpd_register_uri_handler(server, &speed_uri);
 httpd_register_uri_handler(server, &solid_uri);
 httpd_register_uri_handler(server, &first_page_uri);
@@ -464,6 +462,8 @@ ESP_LOGE(TAG, "ESP FAILED TO START SERVER");
 return NULL;
 }
 
+//create RTOS task
+//handle led modes
 void ledTask(void *pvParameters) {
 while (1) {
   if (status == 1) {
@@ -514,7 +514,7 @@ switch (mode) {
 
 void app_main () {
 
-gpio_set_direction(22, GPIO_MODE_OUTPUT);
+//initiate and run server
 ledc_config();
 wifi_init_sta (); 
 start_webserver();
